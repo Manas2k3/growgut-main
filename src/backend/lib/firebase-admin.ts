@@ -25,10 +25,16 @@ function getFirebaseAdminApp() {
     return getApps()[0];
   }
 
-  const serviceAccountPath = resolveServiceAccountPath();
-  const serviceAccount = JSON.parse(
-    readFileSync(serviceAccountPath, "utf8"),
-  ) as ServiceAccount;
+  let serviceAccount: ServiceAccount;
+
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;
+  } else {
+    const serviceAccountPath = resolveServiceAccountPath();
+    serviceAccount = JSON.parse(
+      readFileSync(serviceAccountPath, "utf8"),
+    ) as ServiceAccount;
+  }
 
   return initializeApp({
     credential: cert(serviceAccount),
