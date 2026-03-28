@@ -562,7 +562,7 @@ export default function Page() {
                     "✓ FSSAI Licensed",
                     "🇮🇳 Made in India",
                     "🌱 100% Vegan",
-                    "⭐ 4.8 Rating",
+                    // "⭐ 4.8 Rating",
                     "📦 Free Shipping",
                     "🚫 No GMO",
                     "✨ Clean Label",
@@ -871,15 +871,9 @@ export default function Page() {
                 transition={{ duration: 0.75, ease }}
                 className="mb-16 text-center"
               >
-                <p className="font-['Playfair_Display'] text-[72px] leading-none text-[var(--green)]">
-                  4.8
-                </p>
-                <p className="mt-2 text-[22px] tracking-[0.22em] text-[var(--gold)]">
-                  ★★★★★
-                </p>
-                <p className="mt-3 text-[14px] text-[rgba(28,33,28,0.5)]">
-                  Based on early customer feedback
-                </p>
+                <h2 className="font-['Playfair_Display'] text-[42px] lg:text-[56px] leading-none text-[var(--green)]">
+                  What Our Users Say
+                </h2>
               </motion.div>
 
               <div className="grid gap-6 md:grid-cols-3">
