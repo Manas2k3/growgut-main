@@ -1,0 +1,1508 @@
+"use client";
+
+import Image from "next/image";
+import {
+  AnimatePresence,
+  motion,
+  useInView,
+  useMotionValue,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
+import { IngredientsSection } from "@/frontend/components/growgut/IngredientsSection";
+import { HeroSection } from "@/frontend/components/growgut/HeroSection";
+import { BenefitsSection } from "@/frontend/components/growgut/BenefitsSection";
+import { PRODUCT } from "@/shared/constants/product";
+
+const CHAPTERS = [
+  {
+    eyebrow: "THE FORMULA",
+    heading: "Ancient botanicals. Modern probiotic science.",
+    body:
+      "Every sachet combines Lactobacillus acidophilus a clinically proven probiotic strain with prebiotic botanicals that Indian Ayurveda has trusted for centuries.",
+    image: PRODUCT.images[0],
+  },
+  {
+    eyebrow: "THE RITUAL",
+    heading: "One sachet. Every morning. That's all.",
+    body:
+      "Mix in 150ml of lukewarm water. Drink before breakfast. In two to three weeks, your gut begins to rebalance quietly, naturally, consistently.",
+    image: PRODUCT.images[2],
+  },
+  {
+    eyebrow: "THE RESULT",
+    heading: "The gut you forgot was possible.",
+    body:
+      "Less bloating. More regular. Clearer skin. Energy that doesn't spike and crash. A gut microbiome that actually works all from one small sachet a day.",
+    image: PRODUCT.images[3],
+  },
+] as const;
+
+const REVIEW_CARDS = [
+  {
+    text:
+      "Finally something that actually works. My bloating reduced within 3 weeks — I was skeptical, but now I'm a convert. The vanilla flavor is actually nice.",
+    name: "Priya M.",
+    city: "Bengaluru",
+    stars: "★★★★★",
+  },
+  {
+    text:
+      "My doctor recommended synbiotics post-antibiotics. Found GrowGut, and two months in, my gut feels completely different. Cholesterol also improved.",
+    name: "Rahul S.",
+    city: "Hyderabad",
+    stars: "★★★★★",
+  },
+  {
+    text:
+      "Mixes easily, taste is good, and I genuinely feel more settled after meals. Simple ritual that I've actually stuck to.",
+    name: "Anjali K.",
+    city: "Mumbai",
+    stars: "⭐⭐⭐⭐",
+  },
+] as const;
+
+const PRODUCT_INFO = [
+  {
+    title: "Packaging & Storage",
+    body:
+      "Sachet: 100x5x40mm · Box: 110x50x220mm · Premium matte paper · Store at room temperature",
+  },
+  {
+    title: "Manufacturing",
+    body:
+      "Manufactured by: Balextra Lifescience Pvt. Ltd · 239-240, Shiv Bhakti Industry, Sanki, Palsana, Surat-394305 · FSSAI Mfg License: 10723998000348 · Country of Origin: India",
+  },
+  {
+    title: "Safety & Regulatory",
+    body:
+      'FSSAI License: 12025999000201 · No artificial preservatives · Food category: 13.6 · Disclaimer: This product is not intended to diagnose, treat, cure, or prevent any disease.',
+  },
+] as const;
+
+const BENEFIT_POWERED_BY = [
+  "Lactobacillus acidophilus",
+  "Bael Powder",
+  "Sprouted Ragi",
+] as const;
+
+const BASE_PRICE = 1499;
+const COD_CHARGE = 50;
+const ease = [0.16, 1, 0.3, 1] as const;
+
+type PaymentMethod = "online" | "cod";
+
+type FormState = {
+  fullName: string;
+  phone: string;
+  email: string;
+  address: string;
+  pincode: string;
+  city: string;
+  state: string;
+};
+
+const initialFormState: FormState = {
+  fullName: "",
+  phone: "",
+  email: "",
+  address: "",
+  pincode: "",
+  city: "",
+  state: "",
+};
+
+export default function Page() {
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const storyRef = useRef<HTMLElement | null>(null);
+  const spotlightRef = useRef<HTMLElement | null>(null);
+  const benefitsRef = useRef<HTMLElement | null>(null);
+  const ritualRef = useRef<HTMLElement | null>(null);
+  const reviewsRef = useRef<HTMLElement | null>(null);
+  const faqRef = useRef<HTMLElement | null>(null);
+  const buyRef = useRef<HTMLElement | null>(null);
+
+  const [scrolled, setScrolled] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [openDetailIndex, setOpenDetailIndex] = useState<number | null>(0);
+  const [activeChapter, setActiveChapter] = useState(0);
+  const [activeIngredient, setActiveIngredient] = useState(0);
+  const [promoCode, setPromoCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [promoError, setPromoError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formState, setFormState] = useState<FormState>(initialFormState);
+
+  const storyInView = useInView(storyRef, {
+    once: true,
+    margin: "-100px 0px -100px 0px",
+  });
+  const benefitsInView = useInView(benefitsRef, {
+    once: true,
+    amount: 0.25,
+  });
+  const ritualInView = useInView(ritualRef, {
+    once: true,
+    amount: 0.2,
+  });
+  const reviewsInView = useInView(reviewsRef, {
+    once: true,
+    amount: 0.2,
+  });
+  const faqInView = useInView(faqRef, {
+    once: true,
+    amount: 0.2,
+  });
+  const buyInView = useInView(buyRef, {
+    once: true,
+    amount: 0.15,
+  });
+
+  const spotlightX = useMotionValue(0);
+  const spotlightY = useMotionValue(0);
+  const smoothSpotlightX = useSpring(spotlightX, {
+    stiffness: 110,
+    damping: 18,
+    mass: 0.45,
+  });
+  const smoothSpotlightY = useSpring(spotlightY, {
+    stiffness: 110,
+    damping: 18,
+    mass: 0.45,
+  });
+
+  const { scrollYProgress } = useScroll({
+    target: pageRef,
+    offset: ["start start", "end end"],
+  });
+  const progressScale = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 30,
+    mass: 0.2,
+  });
+
+  const { scrollYProgress: heroScrollProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end end"],
+  });
+  const heroImageY = useTransform(heroScrollProgress, [0, 1], [0, -40]);
+  const heroTextY = useTransform(heroScrollProgress, [0, 1], [0, 56]);
+  const heroTextOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0.52]);
+
+  const { scrollYProgress: chapterProgress } = useScroll({
+    target: spotlightRef,
+    offset: ["start start", "end end"],
+  });
+  const chapterImageScale = useTransform(chapterProgress, [0, 1], [0.96, 1.02]);
+  const chapterImageY = useTransform(chapterProgress, [0, 0.5, 1], [12, 0, -12]);
+  const chapterHighlightY = useTransform(
+    chapterProgress,
+    [0, 0.30, 0.34, 0.64, 0.74, 1],
+    [0, 0, 40, 40, 80, 80],
+  );
+
+  const chapter0Opacity = useTransform(
+    chapterProgress,
+    [0, 0.2, 0.3, 0.38],
+    [1, 1, 0.24, 0],
+  );
+  const chapter1Opacity = useTransform(
+    chapterProgress,
+    [0.22, 0.34, 0.5, 0.64, 0.76],
+    [0, 1, 1, 0.24, 0],
+  );
+  const chapter2Opacity = useTransform(
+    chapterProgress,
+    [0.62, 0.74, 1],
+    [0, 1, 1],
+  );
+
+  const chapter0TextY = useTransform(chapterProgress, [0, 0.33], [0, -16]);
+  const chapter1TextY = useTransform(chapterProgress, [0.2, 0.5, 0.8], [16, 0, -16]);
+  const chapter2TextY = useTransform(chapterProgress, [0.62, 1], [16, 0]);
+
+  const discountedPrice = Math.round(BASE_PRICE * (1 - discount / 100));
+  const finalAmount = paymentMethod === "cod" ? discountedPrice + COD_CHARGE : discountedPrice;
+
+  useEffect(() => {
+    const existing = document.querySelector("[data-growgut-fonts='true']");
+    if (existing) {
+      return;
+    }
+
+    const preconnectGoogle = document.createElement("link");
+    preconnectGoogle.rel = "preconnect";
+    preconnectGoogle.href = "https://fonts.googleapis.com";
+    preconnectGoogle.setAttribute("data-growgut-fonts", "true");
+
+    const preconnectStatic = document.createElement("link");
+    preconnectStatic.rel = "preconnect";
+    preconnectStatic.href = "https://fonts.gstatic.com";
+    preconnectStatic.crossOrigin = "anonymous";
+    preconnectStatic.setAttribute("data-growgut-fonts", "true");
+
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href =
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=DM+Sans:wght@400;500;700&display=swap";
+    stylesheet.setAttribute("data-growgut-fonts", "true");
+
+    document.head.append(preconnectGoogle, preconnectStatic, stylesheet);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 60);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = chapterProgress.on("change", (value) => {
+      if (value < 0.33) {
+        setActiveChapter(0);
+        return;
+      }
+
+      if (value < 0.66) {
+        setActiveChapter(1);
+        return;
+      }
+
+      setActiveChapter(2);
+    });
+
+    return unsubscribe;
+  }, [chapterProgress]);
+
+  useEffect(() => {
+    const target = heroRef.current?.getBoundingClientRect();
+    if (!target) {
+      return;
+    }
+
+    spotlightX.set(target.width * 0.55);
+    spotlightY.set(target.height * 0.32);
+  }, [spotlightX, spotlightY]);
+
+  const scrollToBuy = () => {
+    document.getElementById("buy")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleHeroMove = (event: MouseEvent<HTMLElement>) => {
+    const bounds = heroRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+
+    spotlightX.set(event.clientX - bounds.left - 180);
+    spotlightY.set(event.clientY - bounds.top - 180);
+  };
+
+  const resetHeroGlow = () => {
+    const bounds = heroRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+
+    spotlightX.set(bounds.width * 0.55);
+    spotlightY.set(bounds.height * 0.32);
+  };
+
+  const handlePromoApply = () => {
+    const normalizedCode = promoCode.trim().toUpperCase();
+    const matchedOffer = PRODUCT.offers.find((offer) => offer.code === normalizedCode);
+
+    if (!normalizedCode) {
+      setPromoError("Enter a promo code to apply.");
+      setDiscount(0);
+      return;
+    }
+
+    if (!matchedOffer) {
+      setPromoError("That code doesn't look valid. Try GUT20 or GUT50.");
+      setDiscount(0);
+      return;
+    }
+
+    setDiscount(matchedOffer.discount);
+    setPromoError("");
+  };
+
+  const handleChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = event.target;
+    setFormState((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!formState.fullName.trim()) {
+      setFormError("Please enter your full name.");
+      return;
+    }
+
+    if (!/^[6-9][0-9]{9}$/.test(formState.phone.trim())) {
+      setFormError("Please enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+
+    if (!formState.address.trim()) {
+      setFormError("Please add your delivery address.");
+      return;
+    }
+
+    if (!formState.pincode.trim() || !/^[1-9][0-9]{5}$/.test(formState.pincode.trim())) {
+      setFormError("Please enter a valid 6-digit pincode.");
+      return;
+    }
+
+    if (!formState.city.trim() || !formState.state.trim()) {
+      setFormError("Please complete your city and state.");
+      return;
+    }
+
+    setFormError("");
+    setSubmitted(true);
+  };
+
+  const scrollToChapter = (index: number) => {
+    const container = spotlightRef.current;
+    if (!container) {
+      return;
+    }
+
+    const start = container.offsetTop;
+    const targetProgress = index / (CHAPTERS.length - 1);
+    const scrollOffset =
+      start + targetProgress * (container.offsetHeight - window.innerHeight);
+
+    window.scrollTo({
+      top: scrollOffset,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <>
+      <style jsx global>{`
+        :root {
+          --cream: #f5f2ec;
+          --green: #3a6b3a;
+          --sage: #c8d8b4;
+          --charcoal: #1c211c;
+          --gold: #c49a3c;
+          --muted: #6b8f5e;
+          --offwhite: #faf8f4;
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          margin: 0;
+          background: var(--cream);
+          color: var(--charcoal);
+          font-family: "DM Sans", sans-serif;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        ::selection {
+          background: rgba(196, 154, 60, 0.22);
+          color: var(--charcoal);
+        }
+
+        @keyframes leafDriftA {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) rotate(0deg);
+          }
+          50% {
+            transform: translate3d(16px, -18px, 0) rotate(8deg);
+          }
+        }
+
+        @keyframes leafDriftB {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) rotate(0deg);
+          }
+          50% {
+            transform: translate3d(-18px, 14px, 0) rotate(-12deg);
+          }
+        }
+
+        @keyframes leafDriftC {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) rotate(0deg);
+          }
+          50% {
+            transform: translate3d(12px, 20px, 0) rotate(10deg);
+          }
+        }
+
+        @keyframes leafDriftD {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) rotate(0deg);
+          }
+          50% {
+            transform: translate3d(-12px, -22px, 0) rotate(-8deg);
+          }
+        }
+
+        @keyframes ticker {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+
+        .leaf-a {
+          animation: leafDriftA 25s ease-in-out infinite;
+        }
+
+        .leaf-b {
+          animation: leafDriftB 32s ease-in-out infinite 2s;
+        }
+
+        .leaf-c {
+          animation: leafDriftC 18s ease-in-out infinite 1s;
+        }
+
+        .leaf-d {
+          animation: leafDriftD 40s ease-in-out infinite 4s;
+        }
+
+        .ticker-track {
+          width: max-content;
+          animation: ticker 18s linear infinite;
+        }
+      `}</style>
+
+      <div ref={pageRef} className="bg-[var(--cream)] text-[var(--charcoal)]">
+        <div className="fixed left-0 right-0 top-0 z-40 h-0.5 bg-transparent">
+          <motion.div
+            style={{ scaleX: progressScale }}
+            className="h-full origin-left bg-[var(--green)]"
+          />
+        </div>
+
+        <nav
+          className={`fixed left-0 top-0 z-50 w-full transition-all duration-500 ${
+            scrolled
+              ? "border-b border-[rgba(58,107,58,0.1)] bg-[rgba(245,242,236,0.85)] backdrop-blur-md"
+              : "bg-transparent"
+          }`}
+        >
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="font-['Playfair_Display'] text-[22px] italic text-[var(--green)]"
+            >
+              GrowGut
+            </button>
+
+            <AnimatePresence>
+              {scrolled && (
+                <motion.div
+                  initial={{ opacity: 0, y: -16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.35, ease }}
+                >
+                  <button
+                    type="button"
+                    onClick={scrollToBuy}
+                    className="rounded-full bg-[var(--green)] px-5 py-2 text-sm text-white transition duration-300 hover:scale-105 hover:brightness-110"
+                  >
+                    Buy Now
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </nav>
+
+        <main>
+          <HeroSection 
+            heroRef={heroRef}
+            handleHeroMove={handleHeroMove}
+            resetHeroGlow={resetHeroGlow}
+            smoothSpotlightX={smoothSpotlightX}
+            smoothSpotlightY={smoothSpotlightY}
+            heroTextY={heroTextY}
+            heroTextOpacity={heroTextOpacity}
+            imageParallaxY={heroImageY}
+            scrollToBuy={scrollToBuy}
+          />
+
+          <section className="overflow-hidden bg-[var(--green)] py-3">
+            <div className="ticker-track flex">
+              {[0, 1].map((block) => (
+                <div
+                  key={block}
+                  className="flex shrink-0 items-center gap-8 px-4 text-[13px] text-white"
+                >
+                  {[
+                    "🌿 1 Billion Live Cultures",
+                    "✓ FSSAI Licensed",
+                    "🇮🇳 Made in India",
+                    "🌱 100% Vegan",
+                    "⭐ 4.8 Rating",
+                    "📦 Free Shipping",
+                    "🚫 No GMO",
+                    "✨ Clean Label",
+                  ].map((item) => (
+                    <span key={`${block}-${item}`} className="whitespace-nowrap">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section ref={storyRef} className="bg-[var(--offwhite)] py-32">
+            <div className="mx-auto max-w-2xl px-6 text-center">
+              <motion.p
+                initial={{ opacity: 0, y: 24 }}
+                animate={storyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.65, ease }}
+                className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]"
+              >
+                THE SILENT PROBLEM
+              </motion.p>
+
+              <motion.h2
+                initial={{ opacity: 0, y: 24 }}
+                animate={storyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.7, ease, delay: 0.08 }}
+                className="mt-6 font-['Playfair_Display'] text-[28px] leading-[1.2] text-[var(--charcoal)] md:text-[42px]"
+              >
+                70% of your immune system lives in your gut.
+              </motion.h2>
+
+              <div className="mt-8 space-y-6 text-left">
+                {[
+                  "Your gut microbiome trillions of bacteria living in your digestive tract is the control center for your digestion, immunity, metabolism, and even your mood. When it's out of balance, everything feels off.",
+                  "Bloating. Brain fog. Erratic energy after meals. Poor sleep. Skin that acts up. These aren't random. They're signals from a gut that needs attention.",
+                ].map((paragraph, index) => (
+                  <motion.div
+                    key={paragraph}
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={storyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                    transition={{ duration: 0.7, ease, delay: 0.16 + index * 0.12 }}
+                    className="text-[17px] leading-[1.8] text-[rgba(28,33,28,0.7)]"
+                  >
+                    {paragraph}
+                  </motion.div>
+                ))}
+
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={storyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                  transition={{ duration: 0.7, ease, delay: 0.42 }}
+                  className="font-['Playfair_Display'] text-[24px] italic leading-[1.55] text-[var(--green)] md:text-[28px]"
+                >
+                  Most Indians are unknowingly living with gut dysbiosis a
+                  microbial imbalance caused by processed food, stress,
+                  antibiotics, and poor dietary fiber. GrowGut was formulated
+                  to fix exactly this.
+                </motion.div>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, scaleX: 0.8 }}
+                animate={
+                  storyInView ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0.8 }
+                }
+                transition={{ duration: 0.7, ease, delay: 0.55 }}
+                className="mx-auto mt-16 h-px w-[60%] bg-[rgba(200,216,180,0.9)]"
+              />
+
+              <div className="mt-10 grid gap-6 md:grid-cols-3">
+                {[
+                  { value: "10⁹", label: "CFU per sachet" },
+                  { value: "15", label: "Daily sachets per box" },
+                  { value: "2–3", label: "Weeks to feel the difference" },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={storyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                    transition={{ duration: 0.7, ease, delay: 0.65 + index * 0.1 }}
+                    className="text-center"
+                  >
+                    <div className="font-['Playfair_Display'] text-[44px] text-[var(--green)]">
+                      {stat.value}
+                    </div>
+                    <p className="mt-2 text-[13px] text-[rgba(28,33,28,0.6)]">
+                      {stat.label}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section ref={spotlightRef} className="relative h-[260vh] bg-[var(--cream)] md:h-[280vh] lg:h-[300vh]">
+            <div className="sticky top-[72px] h-[calc(100svh-72px)] overflow-hidden md:top-[80px] md:h-[calc(100svh-80px)] lg:top-0 lg:h-screen">
+              <div className="mx-auto grid h-full max-w-7xl grid-rows-[minmax(220px,34svh)_minmax(0,1fr)] content-start gap-6 px-5 py-4 md:grid-rows-[minmax(280px,40svh)_minmax(0,1fr)] md:px-8 md:py-6 lg:grid-cols-[1fr_minmax(0,560px)] lg:grid-rows-1 lg:items-center lg:gap-12 lg:py-0 xl:grid-cols-[1fr_minmax(0,640px)]">
+                <div className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-[28px] bg-[rgba(255,255,255,0.34)] sm:rounded-[32px] lg:h-full lg:rounded-none lg:bg-transparent">
+                  <motion.div
+                    style={{ scale: chapterImageScale, y: chapterImageY }}
+                    className="relative flex h-full w-full items-center justify-center"
+                  >
+                    <div className="absolute inset-x-6 bottom-4 top-8 rounded-full bg-[radial-gradient(circle,_rgba(200,216,180,0.48)_0%,_rgba(200,216,180,0)_72%)] blur-3xl lg:inset-x-10 lg:bottom-20 lg:top-20" />
+                    <div className="relative z-10 h-full w-full">
+                      <motion.div
+                        style={{ opacity: chapter0Opacity }}
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <Image
+                          src={CHAPTERS[0].image}
+                          alt={CHAPTERS[0].heading}
+                          width={720}
+                          height={820}
+                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
+                        />
+                      </motion.div>
+
+                      <motion.div
+                        style={{ opacity: chapter1Opacity }}
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <Image
+                          src={CHAPTERS[1].image}
+                          alt={CHAPTERS[1].heading}
+                          width={720}
+                          height={820}
+                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
+                        />
+                      </motion.div>
+
+                      <motion.div
+                        style={{ opacity: chapter2Opacity }}
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <Image
+                          src={CHAPTERS[2].image}
+                          alt={CHAPTERS[2].heading}
+                          width={720}
+                          height={820}
+                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
+                        />
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                <div className="relative z-10 min-w-0 pb-4 lg:pb-0 lg:pr-36">
+                  <div className="relative max-w-[34rem]">
+                    <div className="relative min-h-[330px] sm:min-h-[360px] lg:min-h-[380px]">
+                      <motion.div
+                        style={{ opacity: chapter0Opacity, y: chapter0TextY }}
+                        className="absolute inset-0"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
+                          {CHAPTERS[0].eyebrow}
+                        </p>
+                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
+                          {CHAPTERS[0].heading}
+                        </h2>
+                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
+                          {CHAPTERS[0].body}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        style={{ opacity: chapter1Opacity, y: chapter1TextY }}
+                        className="absolute inset-0"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
+                          {CHAPTERS[1].eyebrow}
+                        </p>
+                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
+                          {CHAPTERS[1].heading}
+                        </h2>
+                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
+                          {CHAPTERS[1].body}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        style={{ opacity: chapter2Opacity, y: chapter2TextY }}
+                        className="absolute inset-0"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
+                          {CHAPTERS[2].eyebrow}
+                        </p>
+                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
+                          {CHAPTERS[2].heading}
+                        </h2>
+                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
+                          {CHAPTERS[2].body}
+                        </p>
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex gap-3 lg:hidden">
+                    {CHAPTERS.map((chapter, index) => (
+                      <button
+                        key={chapter.eyebrow}
+                        type="button"
+                        onClick={() => scrollToChapter(index)}
+                        className={`rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.2em] transition ${
+                          activeChapter === index
+                            ? "border-[rgba(58,107,58,0.24)] bg-[rgba(58,107,58,0.08)] text-[var(--green)]"
+                            : "border-[rgba(200,216,180,0.8)] bg-white/60 text-[rgba(28,33,28,0.48)]"
+                        }`}
+                      >
+                        {chapter.eyebrow.replace("THE ", "")}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 lg:block">
+                    <div className="relative rounded-[24px] border border-[rgba(58,107,58,0.1)] bg-white/80 p-2 shadow-[0_10px_30px_rgba(58,107,58,0.08)] backdrop-blur-sm">
+                      <motion.div
+                        style={{ y: chapterHighlightY }}
+                        className="absolute left-2 right-2 top-2 h-10 rounded-[16px] bg-[rgba(58,107,58,0.1)]"
+                      />
+
+                      <div className="absolute bottom-3 left-4 top-3 w-px bg-[rgba(200,216,180,0.8)]" />
+                      {CHAPTERS.map((chapter, index) => (
+                        <button
+                          key={chapter.eyebrow}
+                          type="button"
+                          onClick={() => scrollToChapter(index)}
+                          className="relative z-10 flex h-10 w-full items-center gap-3 rounded-[16px] px-4"
+                          aria-label={`Go to ${chapter.eyebrow}`}
+                        >
+                          <span
+                            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full transition-colors duration-300 ${
+                              activeChapter === index
+                                ? "bg-[var(--green)]"
+                                : "bg-[rgba(200,216,180,0.9)]"
+                            }`}
+                          />
+                          <span
+                            className={`text-[11px] uppercase tracking-[0.2em] transition-colors duration-300 ${
+                              activeChapter === index
+                                ? "font-semibold text-[var(--green)]"
+                                : "text-[rgba(28,33,28,0.45)]"
+                            }`}
+                          >
+                            {chapter.eyebrow.replace("THE ", "")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <BenefitsSection 
+            benefitsRef={benefitsRef} 
+            benefitsInView={benefitsInView} 
+          />
+
+          <IngredientsSection 
+            activeIngredient={activeIngredient} 
+            setActiveIngredient={setActiveIngredient} 
+          />
+
+          <section ref={ritualRef} className="bg-[var(--green)] py-28 text-white">
+            <div className="mx-auto max-w-6xl px-6">
+              <motion.h2
+                initial={{ opacity: 0, y: 30 }}
+                animate={ritualInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                transition={{ duration: 0.75, ease }}
+                className="text-center font-['Playfair_Display'] text-[36px] md:text-[48px]"
+              >
+                Your 60-second morning ritual
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 30 }}
+                animate={ritualInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                transition={{ duration: 0.75, ease, delay: 0.08 }}
+                className="mt-3 text-center text-[16px] text-white/60"
+              >
+                That's all it takes. Every single day.
+              </motion.p>
+
+              <div className="mt-16 grid gap-8 md:grid-cols-4">
+                {[
+                  {
+                    icon: "",
+                    title: "Morning, before food",
+                    body: "Start on an empty stomach for maximum absorption.",
+                  },
+                  {
+                    icon: "",
+                    title: "Tear open one sachet",
+                    body: "Each sachet contains your full daily dose — 8g, pre-measured.",
+                  },
+                  {
+                    icon: "",
+                    title: "Mix in 150ml lukewarm water",
+                    body: "Stir well. Drink immediately. No prep, no blending, no fuss.",
+                  },
+                  {
+                    icon: "",
+                    title: "Repeat daily",
+                    body: "Consistency is everything. Your microbiome rebuilds over weeks, not days.",
+                  },
+                ].map((step, index, collection) => (
+                  <motion.div
+                    key={step.title}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={ritualInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                    transition={{ duration: 0.75, ease, delay: index * 0.12 }}
+                    className="relative text-center"
+                  >
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white/10 font-['Playfair_Display'] text-2xl text-[var(--gold)]">
+                      {index + 1}
+                    </div>
+                    {index < collection.length - 1 && (
+                      <div className="absolute left-[calc(50%+2rem)] top-8 hidden h-px w-[calc(100%-4rem)] border-t border-dashed border-white/25 md:block" />
+                    )}
+                    <div className="mt-5 text-3xl">{step.icon}</div>
+                    <h3 className="mt-4 font-['Playfair_Display'] text-[26px] leading-tight">
+                      {step.title}
+                    </h3>
+                    <p className="mt-3 text-[15px] leading-[1.75] text-white/70">
+                      {step.body}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={ritualInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                transition={{ duration: 0.8, ease, delay: 0.45 }}
+                className="mx-auto mt-16 max-w-xl rounded-2xl border border-white/20 bg-white/10 p-8"
+              >
+                <h3 className="font-['Playfair_Display'] text-[30px] italic text-white">
+                  What to Expect
+                </h3>
+                <div className="mt-5 space-y-3 text-[15px] leading-[1.8] text-white/80">
+                  <p>
+                    <span className="font-medium text-white">Week 1–2:</span> Digestion
+                    begins to settle. Less discomfort after meals.
+                  </p>
+                  <p>
+                    <span className="font-medium text-white">Week 3–4:</span> Noticeable
+                    reduction in bloating. More regular bowel movements.
+                  </p>
+                  <p>
+                    <span className="font-medium text-white">Week 5–6:</span> Sustained
+                    energy. Improved gut-skin connection. Lipid support begins.
+                  </p>
+                  <p>
+                    <span className="font-medium text-white">Month 3+:</span> Full
+                    microbiome rebalancing. Your baseline gut health, elevated.
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          <section ref={reviewsRef} className="bg-[var(--cream)] py-28">
+            <div className="mx-auto max-w-6xl px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={reviewsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.75, ease }}
+                className="mb-16 text-center"
+              >
+                <p className="font-['Playfair_Display'] text-[72px] leading-none text-[var(--green)]">
+                  4.8
+                </p>
+                <p className="mt-2 text-[22px] tracking-[0.22em] text-[var(--gold)]">
+                  ★★★★★
+                </p>
+                <p className="mt-3 text-[14px] text-[rgba(28,33,28,0.5)]">
+                  Based on early customer feedback
+                </p>
+              </motion.div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                {REVIEW_CARDS.map((review, index) => (
+                  <motion.article
+                    key={review.name}
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={reviewsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+                    transition={{ duration: 0.75, ease, delay: index * 0.15 }}
+                    className="relative rounded-2xl border border-[rgba(200,216,180,0.4)] bg-white p-7"
+                  >
+                    <div className="pointer-events-none absolute left-5 top-5 font-['Playfair_Display'] text-[80px] leading-[0.5] text-[rgba(200,216,180,0.4)]">
+                      “
+                    </div>
+                    <p className="relative z-10 pt-6 font-['Playfair_Display'] text-[17px] italic leading-[1.7] text-[var(--charcoal)]">
+                      {review.text}
+                    </p>
+                    <div className="mt-8 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-[14px] font-semibold text-[var(--charcoal)]">
+                          {review.name}
+                        </p>
+                        <p className="text-[13px] text-[var(--muted)]">{review.city}</p>
+                      </div>
+                      <p className="text-sm text-[var(--gold)]">{review.stars}</p>
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section ref={faqRef} className="bg-[var(--offwhite)] py-28">
+            <div className="mx-auto max-w-2xl px-6">
+              <motion.h2
+                initial={{ opacity: 0, y: 24 }}
+                animate={faqInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.75, ease }}
+                className="text-center font-['Playfair_Display'] text-[34px] md:text-[42px]"
+              >
+                Everything you're wondering about
+              </motion.h2>
+
+              <div className="mt-12">
+                {PRODUCT.faqs.map((faq, index) => {
+                  const isOpen = openFaqIndex === index;
+
+                  return (
+                    <div
+                      key={faq.q}
+                      className="border-b border-[rgba(200,216,180,0.5)] py-5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenFaqIndex((current) => (current === index ? null : index))
+                        }
+                        className="flex w-full items-center justify-between gap-5 text-left transition hover:text-[var(--green)]"
+                      >
+                        <span className="text-[16px] font-semibold text-[var(--charcoal)]">
+                          {faq.q}
+                        </span>
+                        <motion.span
+                          animate={{ rotate: isOpen ? 45 : 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="text-2xl text-[var(--green)]"
+                        >
+                          +
+                        </motion.span>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pb-4 pt-4 text-[15px] leading-[1.7] text-[rgba(28,33,28,0.65)]">
+                              {faq.a}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section id="buy" ref={buyRef} className="bg-[var(--cream)] py-28">
+            <div className="mx-auto max-w-5xl px-6">
+              <motion.h2
+                initial={{ opacity: 0, y: 24 }}
+                animate={buyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.75, ease }}
+                className="text-center font-['Playfair_Display'] text-[36px] md:text-[48px]"
+              >
+                Start your gut reset today
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 24 }}
+                animate={buyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+                transition={{ duration: 0.75, ease, delay: 0.08 }}
+                className="mt-3 text-center text-[16px] text-[rgba(28,33,28,0.6)]"
+              >
+                One box. 15 days. Results you can feel.
+              </motion.p>
+
+              <div className="mt-14 grid gap-12 lg:grid-cols-2">
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={buyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                  transition={{ duration: 0.8, ease }}
+                  className="rounded-3xl bg-white p-8 shadow-lg"
+                >
+                  <div className="overflow-hidden rounded-2xl bg-[var(--offwhite)]">
+                    <Image
+                      src={PRODUCT.images[2]}
+                      alt="GrowGut sachet and box"
+                      width={640}
+                      height={440}
+                      className="h-[300px] w-full object-contain mix-blend-multiply"
+                    />
+                  </div>
+                  <h3 className="mt-6 font-['Playfair_Display'] text-[28px] text-[var(--charcoal)]">
+                    {PRODUCT.name}
+                  </h3>
+                  <div className="mt-4 flex items-end justify-between gap-4">
+                    <div>
+                      <div className="font-['Playfair_Display'] text-[44px] leading-none text-[var(--charcoal)]">
+                        ₹{PRODUCT.price}
+                      </div>
+                      {discount > 0 && (
+                        <div className="mt-2 text-[15px] text-[var(--green)]">
+                          <span className="mr-2 text-[rgba(28,33,28,0.45)] line-through">
+                            ₹{BASE_PRICE.toLocaleString("en-IN")}
+                          </span>
+                          ₹{discountedPrice.toLocaleString("en-IN")}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[16px] text-[var(--gold)]">₹99.9/day</p>
+                  </div>
+
+                  <div className="mt-5 space-y-2 text-[14px] leading-[1.7] text-[rgba(28,33,28,0.7)]">
+                    <p>✓ 15 Sachets per box</p>
+                    <p>✓ 1 Billion CFU per sachet</p>
+                    <p>✓ Vegan · No GMO · FSSAI Licensed</p>
+                    <p>✓ Free pan-India shipping</p>
+                  </div>
+
+                  <div className="mt-6 rounded-xl bg-[rgba(200,216,180,0.2)] p-4">
+                    <div className="flex gap-3">
+                      <input
+                        value={promoCode}
+                        onChange={(event) => setPromoCode(event.target.value)}
+                        placeholder="Enter promo code (if you have one)"
+                        className="w-full rounded-lg border border-[rgba(200,216,180,0.8)] bg-white px-4 py-2 text-[14px] text-[var(--charcoal)] outline-none transition focus:border-[var(--green)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePromoApply}
+                        className="rounded-lg bg-[var(--green)] px-4 py-2 text-sm text-white"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {discount > 0 && !promoError && (
+                      <p className="mt-3 text-[13px] text-[var(--green)]">
+                        ✓ {promoCode.trim().toUpperCase()} applied — {discount}% off!
+                      </p>
+                    )}
+
+                    {promoError && (
+                      <p className="mt-3 text-[13px] text-red-500">{promoError}</p>
+                    )}
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={buyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                  transition={{ duration: 0.8, ease, delay: 0.08 }}
+                  className="relative rounded-3xl bg-white p-8 shadow-lg"
+                >
+                  <AnimatePresence>
+                    {submitted && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.35, ease }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-3xl bg-[rgba(250,248,244,0.96)] px-8 text-center"
+                      >
+                        <motion.div
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 220, damping: 16 }}
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green)] text-3xl text-white"
+                        >
+                          ✓
+                        </motion.div>
+                        <h3 className="mt-6 font-['Playfair_Display'] text-[34px]">
+                          Order received!
+                        </h3>
+                        <p className="mt-3 max-w-sm text-[15px] leading-[1.8] text-[rgba(28,33,28,0.68)]">
+                          We'll send a WhatsApp confirmation to your number shortly.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <Field
+                      label="Full Name"
+                      name="fullName"
+                      value={formState.fullName}
+                      onChange={handleChange}
+                      required
+                    />
+
+                    <Field
+                      label="Phone Number"
+                      name="phone"
+                      value={formState.phone}
+                      onChange={handleChange}
+                      required
+                      pattern="[6-9][0-9]{9}"
+                    />
+
+                    <Field
+                      label="Email"
+                      name="email"
+                      value={formState.email}
+                      onChange={handleChange}
+                      type="email"
+                    />
+
+                    <Field
+                      label="Delivery Address"
+                      name="address"
+                      value={formState.address}
+                      onChange={handleChange}
+                      textarea
+                      rows={3}
+                    />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        label="Pincode"
+                        name="pincode"
+                        value={formState.pincode}
+                        onChange={handleChange}
+                      />
+                      <Field
+                        label="City"
+                        name="city"
+                        value={formState.city}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <Field
+                      label="State"
+                      name="state"
+                      value={formState.state}
+                      onChange={handleChange}
+                    />
+
+                    <div className="pt-2">
+                      <p className="mb-3 text-[14px] font-medium text-[var(--charcoal)]">
+                        Payment Method
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {[
+                          { key: "online", label: "💳 Online Payment" },
+                          { key: "cod", label: "🏠 Cash on Delivery" },
+                        ].map((option) => {
+                          const active = paymentMethod === option.key;
+
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() =>
+                                setPaymentMethod(option.key as PaymentMethod)
+                              }
+                              className={`rounded-xl border px-4 py-3 text-sm transition ${
+                                active
+                                  ? "border-[var(--green)] bg-[var(--green)] text-white"
+                                  : "border-[rgba(58,107,58,0.2)] bg-[rgba(200,216,180,0.3)] text-[var(--green)]"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {paymentMethod === "cod" && (
+                        <p className="mt-3 text-[13px] text-[var(--muted)]">
+                          ₹50 COD handling charge applies. Final amount: ₹
+                          {finalAmount.toLocaleString("en-IN")}
+                        </p>
+                      )}
+                    </div>
+
+                    {formError && (
+                      <p className="text-[13px] text-red-500">{formError}</p>
+                    )}
+
+                    <motion.button
+                      type="submit"
+                      whileHover={{
+                        scale: 1.02,
+                        boxShadow: "0 8px 30px rgba(58,107,58,0.25)",
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      className="mt-2 w-full rounded-xl bg-[var(--green)] py-4 font-['Playfair_Display'] text-[20px] italic text-white"
+                    >
+                      Secure My Order →
+                    </motion.button>
+                  </form>
+                </motion.div>
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-[var(--offwhite)] py-16">
+            <div className="mx-auto max-w-3xl px-6">
+              <h2 className="text-[18px] font-semibold text-[var(--charcoal)]">
+                Product Information
+              </h2>
+
+              <div className="mt-6">
+                {PRODUCT_INFO.map((item, index) => {
+                  const isOpen = openDetailIndex === index;
+
+                  return (
+                    <div
+                      key={item.title}
+                      className="border-b border-[rgba(200,216,180,0.45)] py-4"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenDetailIndex((current) =>
+                            current === index ? null : index,
+                          )
+                        }
+                        className="flex w-full items-center justify-between gap-4 text-left"
+                      >
+                        <span className="text-[15px] font-medium text-[var(--charcoal)]">
+                          {item.title}
+                        </span>
+                        <motion.span
+                          animate={{ rotate: isOpen ? 45 : 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="text-xl text-[var(--green)]"
+                        >
+                          +
+                        </motion.span>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pb-3 pt-3 text-[14px] leading-[1.8] text-[rgba(28,33,28,0.65)]">
+                              {item.body}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer className="bg-[var(--charcoal)] px-8 py-16 text-white">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-wrap justify-between gap-12">
+              <div className="max-w-sm">
+                <h3 className="font-['Playfair_Display'] text-[28px] italic text-[var(--gold)]">
+                  GrowGut
+                </h3>
+                <p className="mt-2 text-[14px] text-white/50">
+                  Grow your gut with science and nature.
+                </p>
+                <p className="mt-4 text-[12px] text-white/30">
+                  FSSAI: 12025999000201
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white">Support</h4>
+                <div className="mt-4 space-y-3 text-[14px] text-white/60">
+                  <a
+                    href="https://wa.me/919999999999"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block transition hover:text-white"
+                  >
+                    💬 Chat on WhatsApp
+                  </a>
+                  <a
+                    href="mailto:hello@growgut.in"
+                    className="block transition hover:text-white"
+                  >
+                    hello@growgut.in
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white">Policies</h4>
+                <div className="mt-4 space-y-3 text-[14px] text-white/60">
+                  {[
+                    "Privacy Policy",
+                    "Refund Policy",
+                    "Shipping Policy",
+                    "Terms of Service",
+                  ].map((item) => (
+                    <a key={item} href="#" className="block transition hover:text-white">
+                      {item}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-8 text-[12px] text-white/30">
+              <p>© 2025 GrowGut. All rights reserved. Made with ❤️ in India.</p>
+              <p className="text-[11px] text-white/20">
+                Disclaimer: Dietary supplement. Not a medicine.
+              </p>
+            </div>
+          </div>
+        </footer>
+
+        <motion.a
+          href="https://wa.me/919999999999"
+          target="_blank"
+          rel="noreferrer"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 2, type: "spring", stiffness: 180, damping: 15 }}
+          whileHover={{ scale: 1.1 }}
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] shadow-lg"
+          aria-label="Chat on WhatsApp"
+        >
+          <svg
+            viewBox="0 0 32 32"
+            className="h-7 w-7 fill-white"
+            aria-hidden="true"
+          >
+            <path d="M19.11 17.26c-.29-.15-1.72-.85-1.99-.95-.27-.1-.47-.15-.66.15-.19.29-.76.95-.93 1.14-.17.19-.34.22-.63.08-.29-.15-1.22-.45-2.33-1.44-.86-.76-1.44-1.69-1.61-1.98-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.19-.29.29-.49.1-.19.05-.36-.02-.51-.08-.15-.66-1.59-.9-2.18-.24-.57-.48-.49-.66-.5h-.56c-.19 0-.51.07-.78.36-.27.29-1.02 1-1.02 2.44 0 1.44 1.05 2.83 1.2 3.03.15.19 2.05 3.13 4.96 4.39.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.72-.7 1.96-1.38.24-.68.24-1.26.17-1.38-.07-.12-.27-.19-.56-.34zM16.01 3.2c-7.02 0-12.7 5.68-12.7 12.7 0 2.25.59 4.36 1.62 6.19L3 29l7.1-1.86c1.76.96 3.79 1.5 5.91 1.5h.01c7.01 0 12.69-5.68 12.69-12.7S23.03 3.2 16.01 3.2zm0 23.3h-.01c-1.9 0-3.76-.51-5.39-1.48l-.39-.23-4.21 1.1 1.12-4.11-.25-.42a10.47 10.47 0 0 1-1.6-5.55c0-5.79 4.72-10.5 10.53-10.5 2.81 0 5.45 1.09 7.44 3.08a10.42 10.42 0 0 1 3.08 7.42c0 5.8-4.72 10.51-10.52 10.51z" />
+          </svg>
+        </motion.a>
+      </div>
+    </>
+  );
+}
+
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  textarea = false,
+  rows = 3,
+  required = false,
+  pattern,
+}: {
+  label: string;
+  name: keyof FormState;
+  value: string;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  type?: string;
+  textarea?: boolean;
+  rows?: number;
+  required?: boolean;
+  pattern?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[14px] font-medium text-[var(--charcoal)]">
+        {label}
+        {required ? " *" : ""}
+      </span>
+      {textarea ? (
+        <textarea
+          name={name}
+          value={value}
+          onChange={onChange}
+          rows={rows}
+          className="w-full rounded-lg border border-[rgba(200,216,180,0.6)] px-4 py-3 text-[15px] text-[var(--charcoal)] outline-none transition focus:border-[var(--green)]"
+        />
+      ) : (
+        <input
+          name={name}
+          type={type}
+          value={value}
+          onChange={onChange}
+          pattern={pattern}
+          className="w-full rounded-lg border border-[rgba(200,216,180,0.6)] px-4 py-3 text-[15px] text-[var(--charcoal)] outline-none transition focus:border-[var(--green)]"
+        />
+      )}
+    </label>
+  );
+}
+
+function LeafShape({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 160 160"
+      className={`pointer-events-none absolute text-[rgba(58,107,58,0.06)] ${className}`}
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M87.987 15.334c28.772 12.314 47.713 42.957 42.49 74.182-4.675 27.963-27.848 48.751-52.488 56.984-16.174 5.406-33.823 3.666-47.396-6.953-16.406-12.832-22.346-35.465-19.19-56.076 4.22-27.546 23.889-53.214 49.432-64.984 8.414-3.879 18.082-6.539 27.152-3.153Z"
+        fill="currentColor"
+      />
+      <path
+        d="M55.42 119.842c21.314-24.799 41.533-51.685 49.927-84.387M58.928 93.62c14.731-5.463 30.88-7.024 46.366-4.481"
+        stroke="currentColor"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
