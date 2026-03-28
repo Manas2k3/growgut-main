@@ -36,7 +36,7 @@ const CHAPTERS = [
     heading: "One sachet. Every morning. That's all.",
     body:
       "Mix in 150ml of lukewarm water. Drink before breakfast. In two to three weeks, your gut begins to rebalance quietly, naturally, consistently.",
-    image: PRODUCT.images[2],
+    image: PRODUCT.images[4],
   },
   {
     eyebrow: "THE RESULT",
@@ -48,27 +48,37 @@ const CHAPTERS = [
 ] as const;
 
 const REVIEW_CARDS = [
-  {
-    text:
-      "Finally something that actually works. My bloating reduced within 3 weeks — I was skeptical, but now I'm a convert. The vanilla flavor is actually nice.",
-    name: "Priya M.",
-    city: "Bengaluru",
-    stars: "★★★★★",
-  },
-  {
-    text:
-      "My doctor recommended synbiotics post-antibiotics. Found GrowGut, and two months in, my gut feels completely different. Cholesterol also improved.",
-    name: "Rahul S.",
-    city: "Hyderabad",
-    stars: "★★★★★",
-  },
-  {
-    text:
-      "Mixes easily, taste is good, and I genuinely feel more settled after meals. Simple ritual that I've actually stuck to.",
-    name: "Anjali K.",
-    city: "Mumbai",
-    stars: "⭐⭐⭐⭐",
-  },
+  { name: "Ray Saisoubhagya", text: "GrowGut feels like a high-quality product. The formulation and overall experience make it comfortable for daily use." },
+  { name: "Arpan Ghosh", text: "The taste is balanced and not overpowering. It doesn't feel artificial, which makes it easy to consume regularly." },
+  { name: "Subhashish", text: "The product feels light and gentle. Compared to other probiotics, this one feels more natural." },
+  { name: "Jayalaxmi Dash", text: "I found GrowGut easy to mix and consume daily. The aftertaste is mild and acceptable." },
+  { name: "Adrija Chowdhury", text: "The packaging and quality give confidence. It feels like a thoughtfully made gut-health product." },
+  { name: "Tamanna Lopamudra", text: "The taste is good and manageable. I didn't experience any discomfort after consuming it." },
+  { name: "Jyotsna", text: "It feels suitable for daily intake. Not harsh or medicinal like some other gut supplements." },
+  { name: "Swaraj Parida", text: "The product quality is impressive. I'd be comfortable continuing it as part of my routine." },
+  { name: "Prajna Ritaparna", text: "GrowGut feels balanced and well-formulated. The experience has been smooth so far." },
+  { name: "Debashis Tripathy", text: "Taste-wise it's fine, and overall it feels lighter compared to similar products I've tried." },
+  { name: "Glorina Senapati", text: "The smell and texture are pleasant. Nothing overwhelming, which is a positive for daily use." },
+  { name: "Raj Kishore Patra", text: "It seems like a reliable product. The quality stands out compared to regular supplements." },
+  { name: "Praduman Singh", text: "GrowGut feels easy on the system. I didn't face any difficulty including it in my day." },
+  { name: "MD Asif Saikh", text: "The taste is acceptable and not too sweet. Overall, it feels comfortable to consume." },
+  { name: "Sudhir Jha", text: "The product appears premium and thoughtfully designed. I'd be open to using it long-term." },
+  { name: "Chikesh Mishra", text: "It feels smoother and less harsh than other probiotics I've used earlier." },
+  { name: "Tandin Dorji", text: "The experience has been good so far. It's something I can continue without hesitation." },
+  { name: "Anurag Garnaik", text: "GrowGut feels balanced and easy to consume. A good option for daily gut care." },
+  { name: "Sambit Jena", text: "The product quality is strong. Taste and after-feel are both manageable." },
+  { name: "Ash", text: "It doesn't feel heavy or medicinal. That makes it easier to take regularly." },
+  { name: "Salivan Pattnaik", text: "I liked the overall formulation. With slight taste refinement, it could be even better." },
+  { name: "Trishna Ray", text: "GrowGut feels gentle and consistent. I'd consider continuing it as part of my routine." },
+  { name: "Kriti Chaturvedi", text: "The quality and packaging build trust. It feels like a well-researched product." },
+  { name: "Sansthita Das", text: "Taste and texture are comfortable. No unpleasant aftertaste." },
+  { name: "Sanghamitra Sarkar", text: "The product feels natural and easy to consume daily." },
+  { name: "Subhashree Rath", text: "I found GrowGut better balanced than many gut-health products in the market." },
+  { name: "Sohni Ghosh", text: "It feels light and suitable for regular use. Overall experience has been positive." },
+  { name: "Bidisha Dutta", text: "The product quality is good, and it fits well into a daily routine." },
+  { name: "Subrata Sahoo", text: "GrowGut feels reliable and easy on the stomach." },
+  { name: "Soumya Parida", text: "The taste is mild and acceptable. I didn't face any issues consuming it." },
+  { name: "Amiya Biswal", text: "The formulation feels premium. It doesn't feel like a generic supplement." }
 ] as const;
 
 const PRODUCT_INFO = [
@@ -125,7 +135,7 @@ export default function Page() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const storyRef = useRef<HTMLElement | null>(null);
-  const spotlightRef = useRef<HTMLElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const benefitsRef = useRef<HTMLElement | null>(null);
   const ritualRef = useRef<HTMLElement | null>(null);
   const reviewsRef = useRef<HTMLElement | null>(null);
@@ -136,6 +146,7 @@ export default function Page() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [openDetailIndex, setOpenDetailIndex] = useState<number | null>(0);
   const [activeChapter, setActiveChapter] = useState(0);
+  const [reviewPage, setReviewPage] = useState(0);
   const [activeIngredient, setActiveIngredient] = useState(0);
   const [promoCode, setPromoCode] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -183,11 +194,11 @@ export default function Page() {
     mass: 0.45,
   });
 
-  const { scrollYProgress } = useScroll({
+  const { scrollYProgress: pageScrollYProgress } = useScroll({
     target: pageRef,
     offset: ["start start", "end end"],
   });
-  const progressScale = useSpring(scrollYProgress, {
+  const progressScale = useSpring(pageScrollYProgress, {
     stiffness: 120,
     damping: 30,
     mass: 0.2,
@@ -201,37 +212,11 @@ export default function Page() {
   const heroTextY = useTransform(heroScrollProgress, [0, 1], [0, 56]);
   const heroTextOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0.52]);
 
-  const { scrollYProgress: chapterProgress } = useScroll({
-    target: spotlightRef,
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
     offset: ["start start", "end end"],
   });
-  const chapterImageScale = useTransform(chapterProgress, [0, 1], [0.96, 1.02]);
-  const chapterImageY = useTransform(chapterProgress, [0, 0.5, 1], [12, 0, -12]);
-  const chapterHighlightY = useTransform(
-    chapterProgress,
-    [0, 0.30, 0.34, 0.64, 0.74, 1],
-    [0, 0, 40, 40, 80, 80],
-  );
-
-  const chapter0Opacity = useTransform(
-    chapterProgress,
-    [0, 0.2, 0.3, 0.38],
-    [1, 1, 0.24, 0],
-  );
-  const chapter1Opacity = useTransform(
-    chapterProgress,
-    [0.22, 0.34, 0.5, 0.64, 0.76],
-    [0, 1, 1, 0.24, 0],
-  );
-  const chapter2Opacity = useTransform(
-    chapterProgress,
-    [0.62, 0.74, 1],
-    [0, 1, 1],
-  );
-
-  const chapter0TextY = useTransform(chapterProgress, [0, 0.33], [0, -16]);
-  const chapter1TextY = useTransform(chapterProgress, [0.2, 0.5, 0.8], [16, 0, -16]);
-  const chapter2TextY = useTransform(chapterProgress, [0.62, 1], [16, 0]);
+  const chapterImageScale = useTransform(scrollYProgress, [0, 1], [0.9, 1.05]);
 
   const discountedPrice = Math.round(BASE_PRICE * (1 - discount / 100));
   const finalAmount = paymentMethod === "cod" ? discountedPrice + COD_CHARGE : discountedPrice;
@@ -274,7 +259,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = chapterProgress.on("change", (value) => {
+    const unsubscribe = scrollYProgress.on("change", (value) => {
       if (value < 0.33) {
         setActiveChapter(0);
         return;
@@ -289,7 +274,7 @@ export default function Page() {
     });
 
     return unsubscribe;
-  }, [chapterProgress]);
+  }, [scrollYProgress]);
 
   useEffect(() => {
     const target = heroRef.current?.getBoundingClientRect();
@@ -388,7 +373,7 @@ export default function Page() {
   };
 
   const scrollToChapter = (index: number) => {
-    const container = spotlightRef.current;
+    const container = sectionRef.current;
     if (!container) {
       return;
     }
@@ -478,10 +463,10 @@ export default function Page() {
         }
 
         @keyframes ticker {
-          0% {
+          from {
             transform: translateX(0);
           }
-          100% {
+          to {
             transform: translateX(-50%);
           }
         }
@@ -517,11 +502,10 @@ export default function Page() {
         </div>
 
         <nav
-          className={`fixed left-0 top-0 z-50 w-full transition-all duration-500 ${
-            scrolled
+          className={`fixed left-0 top-0 z-50 w-full transition-all duration-500 ${scrolled
               ? "border-b border-[rgba(58,107,58,0.1)] bg-[rgba(245,242,236,0.85)] backdrop-blur-md"
               : "bg-transparent"
-          }`}
+            }`}
         >
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
             <button
@@ -554,7 +538,7 @@ export default function Page() {
         </nav>
 
         <main>
-          <HeroSection 
+          <HeroSection
             heroRef={heroRef}
             handleHeroMove={handleHeroMove}
             resetHeroGlow={resetHeroGlow}
@@ -567,11 +551,11 @@ export default function Page() {
           />
 
           <section className="overflow-hidden bg-[var(--green)] py-3">
-            <div className="ticker-track flex">
+            <div className="ticker-track flex w-max">
               {[0, 1].map((block) => (
                 <div
                   key={block}
-                  className="flex shrink-0 items-center gap-8 px-4 text-[13px] text-white"
+                  className="flex shrink-0 items-center gap-8 pr-8 text-[13px] text-white"
                 >
                   {[
                     "🌿 1 Billion Live Cultures",
@@ -582,9 +566,12 @@ export default function Page() {
                     "📦 Free Shipping",
                     "🚫 No GMO",
                     "✨ Clean Label",
-                  ].map((item) => (
-                    <span key={`${block}-${item}`} className="whitespace-nowrap">
-                      {item}
+                  ].map((item, index, items) => (
+                    <span key={`${block}-${item}`} className="flex items-center gap-8">
+                      <span className="whitespace-nowrap">{item}</span>
+                      {index < items.length - 1 && (
+                        <span className="text-[10px] text-white/40">·</span>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -675,174 +662,104 @@ export default function Page() {
             </div>
           </section>
 
-          <section ref={spotlightRef} className="relative h-[260vh] bg-[var(--cream)] md:h-[280vh] lg:h-[300vh]">
-            <div className="sticky top-[72px] h-[calc(100svh-72px)] overflow-hidden md:top-[80px] md:h-[calc(100svh-80px)] lg:top-0 lg:h-screen">
+          <section ref={sectionRef} className="relative h-[300vh] bg-[var(--cream)]">
+            <div className="sticky top-0 h-screen overflow-hidden">
               <div className="mx-auto grid h-full max-w-7xl grid-rows-[minmax(220px,34svh)_minmax(0,1fr)] content-start gap-6 px-5 py-4 md:grid-rows-[minmax(280px,40svh)_minmax(0,1fr)] md:px-8 md:py-6 lg:grid-cols-[1fr_minmax(0,560px)] lg:grid-rows-1 lg:items-center lg:gap-12 lg:py-0 xl:grid-cols-[1fr_minmax(0,640px)]">
                 <div className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-[28px] bg-[rgba(255,255,255,0.34)] sm:rounded-[32px] lg:h-full lg:rounded-none lg:bg-transparent">
                   <motion.div
-                    style={{ scale: chapterImageScale, y: chapterImageY }}
+                    style={{ scale: chapterImageScale }}
                     className="relative flex h-full w-full items-center justify-center"
                   >
                     <div className="absolute inset-x-6 bottom-4 top-8 rounded-full bg-[radial-gradient(circle,_rgba(200,216,180,0.48)_0%,_rgba(200,216,180,0)_72%)] blur-3xl lg:inset-x-10 lg:bottom-20 lg:top-20" />
-                    <div className="relative z-10 h-full w-full">
+                    <AnimatePresence mode="wait">
                       <motion.div
-                        style={{ opacity: chapter0Opacity }}
-                        className="absolute inset-0 flex items-center justify-center"
+                        key={activeChapter}
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.02 }}
+                        transition={{ duration: 0.3 }}
+                        className="relative z-10 flex h-full w-full items-center justify-center p-4 lg:p-8"
                       >
-                        <Image
-                          src={CHAPTERS[0].image}
-                          alt={CHAPTERS[0].heading}
-                          width={720}
-                          height={820}
-                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
-                        />
-                      </motion.div>
+                        <motion.div
+                          animate={{ y: [0, -12, 0] }}
+                          transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+                          className="relative rounded-[2rem] border border-emerald-900/10 bg-white/5 p-4 shadow-[0_22px_70px_rgba(28,25,23,0.18)] backdrop-blur-[2px]"
+                        >
+                          <div className="absolute inset-x-12 -bottom-2 h-16 rounded-[100%] bg-black/25 blur-[35px]" />
+                          <div className="absolute inset-x-24 bottom-2 h-8 rounded-[100%] bg-black/30 blur-[16px]" />
 
-                      <motion.div
-                        style={{ opacity: chapter1Opacity }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        <Image
-                          src={CHAPTERS[1].image}
-                          alt={CHAPTERS[1].heading}
-                          width={720}
-                          height={820}
-                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
-                        />
+                          <div className="overflow-hidden rounded-[1.6rem]">
+                            <Image
+                              src={CHAPTERS[activeChapter].image}
+                              alt={CHAPTERS[activeChapter].heading}
+                              width={720}
+                              height={820}
+                              className="relative z-10 h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
+                            />
+                          </div>
+                        </motion.div>
                       </motion.div>
-
-                      <motion.div
-                        style={{ opacity: chapter2Opacity }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        <Image
-                          src={CHAPTERS[2].image}
-                          alt={CHAPTERS[2].heading}
-                          width={720}
-                          height={820}
-                          className="h-full w-full max-h-[34svh] object-contain mix-blend-multiply sm:max-h-[40svh] lg:h-auto lg:max-h-none lg:max-w-[620px]"
-                        />
-                      </motion.div>
-                    </div>
+                    </AnimatePresence>
                   </motion.div>
                 </div>
 
                 <div className="relative z-10 min-w-0 pb-4 lg:pb-0 lg:pr-36">
                   <div className="relative max-w-[34rem]">
                     <div className="relative min-h-[330px] sm:min-h-[360px] lg:min-h-[380px]">
-                      <motion.div
-                        style={{ opacity: chapter0Opacity, y: chapter0TextY }}
-                        className="absolute inset-0"
-                      >
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
-                          {CHAPTERS[0].eyebrow}
-                        </p>
-                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
-                          {CHAPTERS[0].heading}
-                        </h2>
-                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
-                          {CHAPTERS[0].body}
-                        </p>
-                      </motion.div>
-
-                      <motion.div
-                        style={{ opacity: chapter1Opacity, y: chapter1TextY }}
-                        className="absolute inset-0"
-                      >
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
-                          {CHAPTERS[1].eyebrow}
-                        </p>
-                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
-                          {CHAPTERS[1].heading}
-                        </h2>
-                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
-                          {CHAPTERS[1].body}
-                        </p>
-                      </motion.div>
-
-                      <motion.div
-                        style={{ opacity: chapter2Opacity, y: chapter2TextY }}
-                        className="absolute inset-0"
-                      >
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
-                          {CHAPTERS[2].eyebrow}
-                        </p>
-                        <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
-                          {CHAPTERS[2].heading}
-                        </h2>
-                        <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
-                          {CHAPTERS[2].body}
-                        </p>
-                      </motion.div>
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={activeChapter}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute inset-0"
+                        >
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--gold)]">
+                            {CHAPTERS[activeChapter].eyebrow}
+                          </p>
+                          <h2 className="mt-4 max-w-[11ch] font-['Playfair_Display'] text-[30px] leading-[1.06] sm:text-[34px] md:text-[42px] xl:text-[54px]">
+                            {CHAPTERS[activeChapter].heading}
+                          </h2>
+                          <p className="mt-4 max-w-[30rem] text-[15px] leading-[1.75] text-[rgba(28,33,28,0.72)] sm:text-[16px] lg:mt-6 lg:text-[17px] xl:text-[18px]">
+                            {CHAPTERS[activeChapter].body}
+                          </p>
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
                   </div>
 
-                  <div className="mt-8 flex gap-3 lg:hidden">
+                  <div className="mt-8 flex gap-3 lg:absolute lg:right-0 lg:top-1/2 lg:mt-0 lg:-translate-y-1/2 lg:flex-col">
                     {CHAPTERS.map((chapter, index) => (
                       <button
                         key={chapter.eyebrow}
                         type="button"
                         onClick={() => scrollToChapter(index)}
-                        className={`rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.2em] transition ${
-                          activeChapter === index
-                            ? "border-[rgba(58,107,58,0.24)] bg-[rgba(58,107,58,0.08)] text-[var(--green)]"
-                            : "border-[rgba(200,216,180,0.8)] bg-white/60 text-[rgba(28,33,28,0.48)]"
-                        }`}
+                        className="flex items-center justify-center rounded-full p-1.5 transition-transform duration-300"
+                        aria-label={`Go to ${chapter.eyebrow}`}
                       >
-                        {chapter.eyebrow.replace("THE ", "")}
+                        <span
+                          className={`block rounded-full border-[var(--green)] transition-all duration-300 ${index === activeChapter
+                              ? "h-2.5 w-2.5 scale-110 bg-[var(--green)]"
+                              : "h-2 w-2 border"
+                            }`}
+                        />
                       </button>
                     ))}
-                  </div>
-
-                  <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 lg:block">
-                    <div className="relative rounded-[24px] border border-[rgba(58,107,58,0.1)] bg-white/80 p-2 shadow-[0_10px_30px_rgba(58,107,58,0.08)] backdrop-blur-sm">
-                      <motion.div
-                        style={{ y: chapterHighlightY }}
-                        className="absolute left-2 right-2 top-2 h-10 rounded-[16px] bg-[rgba(58,107,58,0.1)]"
-                      />
-
-                      <div className="absolute bottom-3 left-4 top-3 w-px bg-[rgba(200,216,180,0.8)]" />
-                      {CHAPTERS.map((chapter, index) => (
-                        <button
-                          key={chapter.eyebrow}
-                          type="button"
-                          onClick={() => scrollToChapter(index)}
-                          className="relative z-10 flex h-10 w-full items-center gap-3 rounded-[16px] px-4"
-                          aria-label={`Go to ${chapter.eyebrow}`}
-                        >
-                          <span
-                            className={`h-2.5 w-2.5 flex-shrink-0 rounded-full transition-colors duration-300 ${
-                              activeChapter === index
-                                ? "bg-[var(--green)]"
-                                : "bg-[rgba(200,216,180,0.9)]"
-                            }`}
-                          />
-                          <span
-                            className={`text-[11px] uppercase tracking-[0.2em] transition-colors duration-300 ${
-                              activeChapter === index
-                                ? "font-semibold text-[var(--green)]"
-                                : "text-[rgba(28,33,28,0.45)]"
-                            }`}
-                          >
-                            {chapter.eyebrow.replace("THE ", "")}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <BenefitsSection 
-            benefitsRef={benefitsRef} 
-            benefitsInView={benefitsInView} 
+          <BenefitsSection
+            benefitsRef={benefitsRef}
+            benefitsInView={benefitsInView}
           />
 
-          <IngredientsSection 
-            activeIngredient={activeIngredient} 
-            setActiveIngredient={setActiveIngredient} 
+          <IngredientsSection
+            activeIngredient={activeIngredient}
+            setActiveIngredient={setActiveIngredient}
           />
 
           <section ref={ritualRef} className="bg-[var(--green)] py-28 text-white">
@@ -874,12 +791,12 @@ export default function Page() {
                   {
                     icon: "",
                     title: "Tear open one sachet",
-                    body: "Each sachet contains your full daily dose — 8g, pre-measured.",
+                    body: "Each sachet contains your full daily dose of 8g, pre-measured.",
                   },
                   {
                     icon: "",
                     title: "Mix in 150ml lukewarm water",
-                    body: "Stir well. Drink immediately. No prep, no blending, no fuss.",
+                    body: "Pour 1 sachet into 150ml of lukewarm water not hot, not cold. Stir for 10 seconds and drink immediately. Do not let it sit.",
                   },
                   {
                     icon: "",
@@ -922,20 +839,24 @@ export default function Page() {
                 </h3>
                 <div className="mt-5 space-y-3 text-[15px] leading-[1.8] text-white/80">
                   <p>
-                    <span className="font-medium text-white">Week 1–2:</span> Digestion
-                    begins to settle. Less discomfort after meals.
+                    <span className="font-medium text-white">Day 1–5:</span> Your gut begins
+                    adjusting. Most users notice less discomfort and bloating after meals
+                    within the first few days.
                   </p>
                   <p>
-                    <span className="font-medium text-white">Week 3–4:</span> Noticeable
-                    reduction in bloating. More regular bowel movements.
+                    <span className="font-medium text-white">Day 6–10:</span> Digestion feels
+                    more settled. Energy after meals becomes more consistent. Less of that
+                    heavy, foggy feeling.
                   </p>
                   <p>
-                    <span className="font-medium text-white">Week 5–6:</span> Sustained
-                    energy. Improved gut-skin connection. Lipid support begins.
+                    <span className="font-medium text-white">Day 11–15:</span> Noticeable
+                    improvement in regularity and gut comfort. Your microbiome has begun
+                    rebalancing.
                   </p>
                   <p>
-                    <span className="font-medium text-white">Month 3+:</span> Full
-                    microbiome rebalancing. Your baseline gut health, elevated.
+                    <span className="font-medium text-white">Beyond day 15:</span> Continue
+                    with a second box to maintain and deepen the benefits a balanced gut
+                    is built over time, not overnight.
                   </p>
                 </div>
               </motion.div>
@@ -962,7 +883,7 @@ export default function Page() {
               </motion.div>
 
               <div className="grid gap-6 md:grid-cols-3">
-                {REVIEW_CARDS.map((review, index) => (
+                {REVIEW_CARDS.slice(reviewPage * 3, reviewPage * 3 + 3).map((review, index) => (
                   <motion.article
                     key={review.name}
                     initial={{ opacity: 0, y: 40 }}
@@ -981,12 +902,22 @@ export default function Page() {
                         <p className="text-[14px] font-semibold text-[var(--charcoal)]">
                           {review.name}
                         </p>
-                        <p className="text-[13px] text-[var(--muted)]">{review.city}</p>
+                        {/* <p className="text-[13px] text-[var(--muted)]">Verified Buyer</p> */}
                       </div>
-                      <p className="text-sm text-[var(--gold)]">{review.stars}</p>
+                      {/* <p className="text-sm text-[var(--gold)]">★★★★★</p> */}
                     </div>
                   </motion.article>
                 ))}
+              </div>
+
+              <div className="mt-12 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setReviewPage((prev) => (prev + 1) * 3 >= REVIEW_CARDS.length ? 0 : prev + 1)}
+                  className="rounded-full border border-[var(--green)] bg-transparent px-8 py-3 text-[14px] font-medium text-[var(--green)] transition-all hover:bg-[var(--green)] hover:text-white"
+                >
+                  Show more reviews →
+                </button>
               </div>
             </div>
           </section>
@@ -1251,11 +1182,10 @@ export default function Page() {
                               onClick={() =>
                                 setPaymentMethod(option.key as PaymentMethod)
                               }
-                              className={`rounded-xl border px-4 py-3 text-sm transition ${
-                                active
+                              className={`rounded-xl border px-4 py-3 text-sm transition ${active
                                   ? "border-[var(--green)] bg-[var(--green)] text-white"
                                   : "border-[rgba(58,107,58,0.2)] bg-[rgba(200,216,180,0.3)] text-[var(--green)]"
-                              }`}
+                                }`}
                             >
                               {option.label}
                             </button>

@@ -40,10 +40,10 @@ export function HeroSection({
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(200,216,180,0.4)_0%,transparent_60%)]" />
 
-      <LeafShape className="leaf-a left-[-6rem] top-[5rem] h-40 w-40 md:h-56 md:w-56" />
-      <LeafShape className="leaf-b right-[-5rem] top-[7rem] h-36 w-36 md:h-52 md:w-52" />
-      <LeafShape className="leaf-c bottom-[7rem] left-[4%] h-32 w-32 md:h-44 md:w-44" />
-      <LeafShape className="leaf-d bottom-[-2rem] right-[8%] h-44 w-44 md:h-60 md:w-60" />
+      <LeafShape className="leaf-a left-[-6rem] top-[5rem] h-[8.5rem] w-[8.5rem] md:h-48 md:w-48" />
+      <LeafShape className="leaf-b right-[-5rem] top-[7rem] h-[7.75rem] w-[7.75rem] md:h-44 md:w-44" />
+      <LeafShape className="leaf-c bottom-[7rem] left-[4%] h-[6.75rem] w-[6.75rem] md:h-[9.25rem] md:w-[9.25rem]" />
+      <LeafShape className="leaf-d bottom-[-2rem] right-[8%] h-[9.25rem] w-[9.25rem] md:h-[13rem] md:w-[13rem]" />
 
       <motion.div
         style={{ x: smoothSpotlightX, y: smoothSpotlightY }}

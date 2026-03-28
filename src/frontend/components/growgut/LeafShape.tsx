@@ -4,7 +4,7 @@ export function LeafShape({ className }: { className: string }) {
   return (
     <svg
       viewBox="0 0 160 160"
-      className={`pointer-events-none absolute text-[rgba(58,107,58,0.06)] ${className}`}
+      className={`pointer-events-none absolute text-[rgba(58,107,58,0.04)] ${className}`}
       fill="none"
       aria-hidden="true"
     >
