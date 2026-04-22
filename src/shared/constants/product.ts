@@ -85,7 +85,7 @@ export const PRODUCT = {
     },
     {
       q: "When will I feel a difference?",
-      a: "Most users notice improved digestion and reduced bloating within 2–3 weeks. By week 6, the full benefits including lipid and glucose support become more apparent.",
+      a: "Most users notice less bloating and improved digestion within the first 5–10 days. By day 15, your gut feels noticeably different. Continue with a second box to maintain and deepen the benefits over time.",
     },
     {
       q: "Is it safe for daily use?",
@@ -101,7 +101,7 @@ export const PRODUCT = {
     // },
     {
       q: "How long does delivery take?",
-      a: "We ship pan-India. Expect delivery within 5–7 business days. You'll get a WhatsApp confirmation once your order is placed.",
+      a: "We ship pan-India. Expect delivery within 5–7 business days. You'll get a WhatsApp / email confirmation once your order is placed.",
     },
     // {
     //   q: "What's your return policy?",

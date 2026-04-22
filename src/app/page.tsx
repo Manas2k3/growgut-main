@@ -11,6 +11,7 @@ import {
   useTransform,
 } from "framer-motion";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -110,6 +111,7 @@ const COD_CHARGE = 50;
 const ease = [0.16, 1, 0.3, 1] as const;
 
 type PaymentMethod = "online" | "cod";
+type PaymentStatus = "idle" | "loading" | "success" | "failed";
 
 type FormState = {
   fullName: string;
@@ -130,6 +132,29 @@ const initialFormState: FormState = {
   city: "",
   state: "",
 };
+
+// Declare the Razorpay global injected by checkout.js
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay: new (options: Record<string, unknown>) => { open(): void };
+  }
+}
+
+/** Dynamically loads the Razorpay checkout.js script (once). */
+async function loadRazorpayScript(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (window.Razorpay) return true;
+
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
 
 export default function Page() {
   const pageRef = useRef<HTMLDivElement | null>(null);
@@ -152,9 +177,13 @@ export default function Page() {
   const [discount, setDiscount] = useState(0);
   const [promoError, setPromoError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
-  const [submitted, setSubmitted] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
+  const [confirmedOrderId, setConfirmedOrderId] = useState("");
+  const [failureReason, setFailureReason] = useState("");
   const [formError, setFormError] = useState("");
   const [formState, setFormState] = useState<FormState>(initialFormState);
+  // Keep submitted for backward compat (drives same overlay logic)
+  const submitted = paymentStatus === "success";
 
   const storyInView = useInView(storyRef, {
     once: true,
@@ -340,36 +369,200 @@ export default function Page() {
     }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  /** Client-side pre-validation (mirrors server validation for fast feedback). */
+  const validateForm = useCallback((): string | null => {
+    if (!formState.fullName.trim()) return "Please enter your full name.";
+    if (!/^[6-9][0-9]{9}$/.test(formState.phone.trim()))
+      return "Please enter a valid 10-digit Indian mobile number.";
+    if (!formState.address.trim()) return "Please add your delivery address.";
+    if (!/^[1-9][0-9]{5}$/.test(formState.pincode.trim()))
+      return "Please enter a valid 6-digit pincode.";
+    if (!formState.city.trim() || !formState.state.trim())
+      return "Please complete your city and state.";
+    return null;
+  }, [formState]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formState.fullName.trim()) {
-      setFormError("Please enter your full name.");
+    const validationError = validateForm();
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
-
-    if (!/^[6-9][0-9]{9}$/.test(formState.phone.trim())) {
-      setFormError("Please enter a valid 10-digit Indian mobile number.");
-      return;
-    }
-
-    if (!formState.address.trim()) {
-      setFormError("Please add your delivery address.");
-      return;
-    }
-
-    if (!formState.pincode.trim() || !/^[1-9][0-9]{5}$/.test(formState.pincode.trim())) {
-      setFormError("Please enter a valid 6-digit pincode.");
-      return;
-    }
-
-    if (!formState.city.trim() || !formState.state.trim()) {
-      setFormError("Please complete your city and state.");
-      return;
-    }
-
     setFormError("");
-    setSubmitted(true);
+
+    // ── COD path ──────────────────────────────────────────────────────────────
+    if (paymentMethod === "cod") {
+      setPaymentStatus("loading");
+      try {
+        const res = await fetch("/api/orders/save-cod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer: {
+              name: formState.fullName,
+              email: formState.email,
+              phone: formState.phone,
+              address: formState.address,
+              city: formState.city,
+              state: formState.state,
+              pincode: formState.pincode,
+            },
+            orderDetails: {
+              quantity: 1,
+              pricePerBox: BASE_PRICE,
+              totalAmount: discountedPrice,
+              ...(discount > 0 ? { promoCode: promoCode.trim().toUpperCase(), discount } : {}),
+            },
+            finalAmount,
+          }),
+        });
+        const data = await res.json() as { success?: boolean; orderId?: string; error?: string };
+        if (!res.ok || !data.success) {
+          throw new Error(data.error ?? "Failed to place COD order.");
+        }
+        setConfirmedOrderId(data.orderId ?? "");
+        setPaymentStatus("success");
+      } catch (err) {
+        console.error("[COD] Error:", err);
+        setFailureReason(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+        setPaymentStatus("failed");
+      }
+      return;
+    }
+
+    // ── Online payment path ───────────────────────────────────────────────────
+    setPaymentStatus("loading");
+
+    try {
+      // Step 1: Create Razorpay order on the server
+      const createRes = await fetch("/api/orders/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: {
+            name: formState.fullName,
+            email: formState.email,
+            phone: formState.phone,
+            address: formState.address,
+            city: formState.city,
+            state: formState.state,
+            pincode: formState.pincode,
+          },
+          amountInPaise: finalAmount * 100,
+        }),
+      });
+
+      const createData = await createRes.json() as {
+        razorpayOrderId?: string;
+        orderId?: string;
+        amount?: number;
+        currency?: string;
+        error?: string;
+      };
+
+      if (!createRes.ok || !createData.razorpayOrderId) {
+        throw new Error(createData.error ?? "Could not initiate payment.");
+      }
+
+      // Step 2: Load Razorpay checkout script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Payment gateway could not load. Check your internet connection and try again.");
+      }
+
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!keyId) {
+        throw new Error("Payment gateway is not configured.");
+      }
+
+      // Step 3: Open Razorpay modal
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key: keyId,
+          amount: createData.amount,
+          currency: createData.currency ?? "INR",
+          name: "GrowGut",
+          description: "GrowGut Synbiotic — 15 Day Box",
+          image: "/images/logo.png",
+          order_id: createData.razorpayOrderId,
+          prefill: {
+            name: formState.fullName,
+            email: formState.email,
+            contact: formState.phone,
+          },
+          notes: {
+            address: formState.address,
+            growgut_order_id: createData.orderId,
+          },
+          theme: { color: "#3a6b3a" },
+          modal: {
+            ondismiss: () => {
+              // User closed the modal without paying
+              reject(new Error("Payment was cancelled. You can try again anytime."));
+            },
+          },
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            // Step 4: Verify signature and save order on the server
+            try {
+              const verifyRes = await fetch("/api/orders/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                  orderId: createData.orderId,
+                  customer: {
+                    name: formState.fullName,
+                    email: formState.email,
+                    phone: formState.phone,
+                    address: formState.address,
+                    city: formState.city,
+                    state: formState.state,
+                    pincode: formState.pincode,
+                  },
+                  orderDetails: {
+                    quantity: 1,
+                    pricePerBox: BASE_PRICE,
+                    totalAmount: discountedPrice,
+                    paymentMethod: "online",
+                    ...(discount > 0 ? { promoCode: promoCode.trim().toUpperCase(), discount } : {}),
+                  },
+                  amountPaidInPaise: createData.amount,
+                }),
+              });
+
+              const verifyData = await verifyRes.json() as { success?: boolean; orderId?: string; error?: string };
+
+              if (!verifyRes.ok || !verifyData.success) {
+                reject(new Error(verifyData.error ?? "Payment verification failed."));
+                return;
+              }
+
+              setConfirmedOrderId(verifyData.orderId ?? "");
+              resolve();
+            } catch (verifyErr) {
+              reject(verifyErr);
+            }
+          },
+        });
+
+        rzp.open();
+      });
+
+      setPaymentStatus("success");
+    } catch (err) {
+      console.error("[payment] Error:", err);
+      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setFailureReason(message);
+      setPaymentStatus("failed");
+    }
   };
 
   const scrollToChapter = (index: number) => {
@@ -840,8 +1033,7 @@ export default function Page() {
                 <div className="mt-5 space-y-3 text-[15px] leading-[1.8] text-white/80">
                   <p>
                     <span className="font-medium text-white">Day 1–5:</span> Your gut begins
-                    adjusting. Most users notice less discomfort and bloating after meals
-                    within the first few days.
+                    adjusting. Most users notice less bloating and improved digestion within the first 5–10 days. By day 15, your gut feels noticeably different. Continue with a second box to maintain and deepen the benefits over time.
                   </p>
                   <p>
                     <span className="font-medium text-white">Day 6–10:</span> Digestion feels
@@ -1075,28 +1267,139 @@ export default function Page() {
                   className="relative rounded-3xl bg-white p-8 shadow-lg"
                 >
                   <AnimatePresence>
-                    {submitted && (
+                    {/* ── Loading overlay ── */}
+                    {paymentStatus === "loading" && (
                       <motion.div
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-3xl bg-[rgba(250,248,244,0.97)] px-8 text-center"
+                      >
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                          className="h-12 w-12 rounded-full border-4 border-[rgba(58,107,58,0.15)] border-t-[var(--green)]"
+                        />
+                        <p className="mt-5 text-[15px] font-medium text-[var(--charcoal)]">
+                          Processing your order…
+                        </p>
+                        <p className="mt-1 text-[13px] text-[rgba(28,33,28,0.5)]">
+                          Please don't close this page.
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {/* ── Success overlay ── */}
+                    {paymentStatus === "success" && (
+                      <motion.div
+                        key="success"
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.96 }}
                         transition={{ duration: 0.35, ease }}
-                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-3xl bg-[rgba(250,248,244,0.96)] px-8 text-center"
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-3xl bg-[rgba(250,248,244,0.97)] px-8 text-center"
                       >
                         <motion.div
                           initial={{ scale: 0.5, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ type: "spring", stiffness: 220, damping: 16 }}
-                          className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green)] text-3xl text-white"
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green)] text-3xl text-white shadow-lg"
                         >
                           ✓
                         </motion.div>
-                        <h3 className="mt-6 font-['Playfair_Display'] text-[34px]">
-                          Order received!
-                        </h3>
-                        <p className="mt-3 max-w-sm text-[15px] leading-[1.8] text-[rgba(28,33,28,0.68)]">
-                          We'll send a WhatsApp confirmation to your number shortly.
-                        </p>
+                        <motion.h3
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2, duration: 0.4 }}
+                          className="mt-6 font-['Playfair_Display'] text-[34px] text-[var(--green)]"
+                        >
+                          {paymentMethod === "cod" ? "Order placed!" : "Payment confirmed!"}
+                        </motion.h3>
+                        {confirmedOrderId && (
+                          <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="mt-2 rounded-lg bg-[rgba(200,216,180,0.3)] px-4 py-1.5 text-[13px] font-medium text-[var(--green)]"
+                          >
+                            Order ID: {confirmedOrderId}
+                          </motion.p>
+                        )}
+                        <motion.p
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.35, duration: 0.4 }}
+                          className="mt-4 max-w-sm text-[15px] leading-[1.8] text-[rgba(28,33,28,0.68)]"
+                        >
+                          {paymentMethod === "cod"
+                            ? "Your COD order is confirmed. We'll WhatsApp you the tracking details once shipped."
+                            : "Your gut reset starts now. We'll WhatsApp you the tracking details once your box ships. 🌿"}
+                        </motion.p>
+                        <motion.a
+                          href="https://wa.me/919999999999"
+                          target="_blank"
+                          rel="noreferrer"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5 }}
+                          className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-2.5 text-[14px] font-medium text-white shadow-md transition-opacity hover:opacity-90"
+                        >
+                          <svg viewBox="0 0 32 32" className="h-4 w-4 fill-white" aria-hidden="true">
+                            <path d="M19.11 17.26c-.29-.15-1.72-.85-1.99-.95-.27-.1-.47-.15-.66.15-.19.29-.76.95-.93 1.14-.17.19-.34.22-.63.08-.29-.15-1.22-.45-2.33-1.44-.86-.76-1.44-1.69-1.61-1.98-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.19-.29.29-.49.1-.19.05-.36-.02-.51-.08-.15-.66-1.59-.9-2.18-.24-.57-.48-.49-.66-.5h-.56c-.19 0-.51.07-.78.36-.27.29-1.02 1-1.02 2.44 0 1.44 1.05 2.83 1.2 3.03.15.19 2.05 3.13 4.96 4.39.69.3 1.23.48 1.65.61.69.22 1.31.19 1.8.12.55-.08 1.72-.7 1.96-1.38.24-.68.24-1.26.17-1.38-.07-.12-.27-.19-.56-.34zM16.01 3.2c-7.02 0-12.7 5.68-12.7 12.7 0 2.25.59 4.36 1.62 6.19L3 29l7.1-1.86c1.76.96 3.79 1.5 5.91 1.5h.01c7.01 0 12.69-5.68 12.69-12.7S23.03 3.2 16.01 3.2zm0 23.3h-.01c-1.9 0-3.76-.51-5.39-1.48l-.39-.23-4.21 1.1 1.12-4.11-.25-.42a10.47 10.47 0 0 1-1.6-5.55c0-5.79 4.72-10.5 10.53-10.5 2.81 0 5.45 1.09 7.44 3.08a10.42 10.42 0 0 1 3.08 7.42c0 5.8-4.72 10.51-10.52 10.51z" />
+                          </svg>
+                          Chat with us on WhatsApp
+                        </motion.a>
+                      </motion.div>
+                    )}
+
+                    {/* ── Failed overlay ── */}
+                    {paymentStatus === "failed" && (
+                      <motion.div
+                        key="failed"
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.35, ease }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-3xl bg-[rgba(250,248,244,0.97)] px-8 text-center"
+                      >
+                        <motion.div
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 220, damping: 16 }}
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-3xl text-white shadow-lg"
+                        >
+                          ✕
+                        </motion.div>
+                        <motion.h3
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2, duration: 0.4 }}
+                          className="mt-6 font-['Playfair_Display'] text-[30px] text-[var(--charcoal)]"
+                        >
+                          Payment not completed
+                        </motion.h3>
+                        <motion.p
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3, duration: 0.4 }}
+                          className="mt-3 max-w-sm text-[14px] leading-[1.75] text-[rgba(28,33,28,0.62)]"
+                        >
+                          {failureReason}
+                        </motion.p>
+                        <motion.button
+                          type="button"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setPaymentStatus("idle")}
+                          className="mt-8 rounded-xl bg-[var(--green)] px-8 py-3 font-['Playfair_Display'] text-[18px] italic text-white shadow-md"
+                        >
+                          Try again →
+                        </motion.button>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1165,7 +1468,7 @@ export default function Page() {
                       <div className="grid gap-3 sm:grid-cols-2">
                         {[
                           { key: "online", label: "💳 Online Payment" },
-                          { key: "cod", label: "🏠 Cash on Delivery" },
+                          // { key: "cod", label: "🏠 Cash on Delivery" },
                         ].map((option) => {
                           const active = paymentMethod === option.key;
 
@@ -1201,14 +1504,19 @@ export default function Page() {
 
                     <motion.button
                       type="submit"
-                      whileHover={{
+                      disabled={paymentStatus === "loading"}
+                      whileHover={paymentStatus !== "loading" ? {
                         scale: 1.02,
                         boxShadow: "0 8px 30px rgba(58,107,58,0.25)",
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                      className="mt-2 w-full rounded-xl bg-[var(--green)] py-4 font-['Playfair_Display'] text-[20px] italic text-white"
+                      } : {}}
+                      whileTap={paymentStatus !== "loading" ? { scale: 0.98 } : {}}
+                      className="mt-2 w-full rounded-xl bg-[var(--green)] py-4 font-['Playfair_Display'] text-[20px] italic text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Secure My Order →
+                      {paymentStatus === "loading"
+                        ? "Processing…"
+                        : paymentMethod === "cod"
+                          ? "Place COD Order →"
+                          : "Pay Securely →"}
                     </motion.button>
                   </form>
                 </motion.div>
@@ -1302,10 +1610,10 @@ export default function Page() {
                     💬 Chat on WhatsApp
                   </a>
                   <a
-                    href="mailto:hello@growgut.in"
+                    href="mailto:growgut26@gmail.com"
                     className="block transition hover:text-white"
                   >
-                    hello@growgut.in
+                    growgut26@gmail.com
                   </a>
                 </div>
               </div>
@@ -1314,13 +1622,13 @@ export default function Page() {
                 <h4 className="font-medium text-white">Policies</h4>
                 <div className="mt-4 space-y-3 text-[14px] text-white/60">
                   {[
-                    "Privacy Policy",
-                    "Refund Policy",
-                    "Shipping Policy",
-                    "Terms of Service",
+                    { label: "Privacy Policy", href: "/privacy-policy" },
+                    { label: "Refund Policy", href: "/refund-policy" },
+                    { label: "Shipping Policy", href: "/shipping-policy" },
+                    { label: "Terms of Service", href: "/terms-of-service" },
                   ].map((item) => (
-                    <a key={item} href="#" className="block transition hover:text-white">
-                      {item}
+                    <a key={item.label} href={item.href} className="block transition hover:text-white">
+                      {item.label}
                     </a>
                   ))}
                 </div>

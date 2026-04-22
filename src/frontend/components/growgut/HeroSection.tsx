@@ -107,7 +107,7 @@ export function HeroSection({
                 ₹{PRODUCT.price}
               </p>
               <p className="font-sans text-[14px] font-normal text-stone-600">
-                Just ₹100/day for better digestion
+                Just ₹99.9/day for better digestion
               </p>
             </div>
           </motion.div>
